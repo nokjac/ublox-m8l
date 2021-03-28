@@ -655,6 +655,10 @@ void ubx_decode_esf_status(char* esf, uint len)
     uint8_t dataType;
     char* used;
     char* ready;
+    uint8_t freq;
+    uint8_t fault;
+    uint8_t status1;
+    uint8_t status2;
 
     switch (fusionMode) {
     case 0:
@@ -680,16 +684,19 @@ void ubx_decode_esf_status(char* esf, uint len)
         dataType = esf[16 + 4 * i] & 0x3F;
         ready = (esf[16 + 4 * i] & 0x80) ? "ready" : "notReady";
         used = (esf[16 + 4 * i] & 0x40) ? "used" : "notUsed";
+        freq = esf[18 + 4 * i];
+        fault = esf[19 + i * 4];
+        status1 = esf[16 + i * 4];
+        status2 = esf[17 + i * 4];
 
         //if ((esf[16 + 4 * i] & 0x80) && (esf[16 + 4 * i] & 0x40))
         //{
         //	sensor_fusion_active = 1;
         //}
 
-        printf("      ESF-STATUS: sensor%d: sensStatus1: %s %s %s (%02x), senseStatus2: %s (%02x), faults: %02x\n",
-            i, ubx_get_sensor_type(dataType), ready, used, esf[16 + i * 4],
-            ubx_get_calibration_status(esf[17 + i * 4] & 0x03), esf[17 + i * 4], esf[19 + i * 4]);
-        // ToDo: decode sensStatus1, sensStatus2 and fault flags
+        printf("      ESF-STATUS: sensor%d: sensStatus1: %s %s %s (%02x), senseStatus2: %s (%02x), freq: %d, faults: %02x\n",
+            i, ubx_get_sensor_type(dataType), ready, used, status1,
+            ubx_get_calibration_status(status2 & 0x03), status2, freq, fault);
     }
 }
 
