@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "broadcast_socket.h"
 #include "gnss_m8l.h"
 
 #define I2C_0 0
@@ -26,6 +27,14 @@
 #define I2C_SEND_DELAY 20000
 #define I2C_READ_DELAY 20000
 #define I2C_MAX_READ_RETIES 5
+
+#ifdef SEND_TO_BROADCAST
+#define BROADCAST_SOCKET_ADDR "255.255.255.255"
+#define BROADCAST_SOCKET_PORT 49100
+#define BROADCAST_SOCKET_DEVICE "eth0"
+
+uint8_t send_to_broadcast = 0;
+#endif /*SEND_TO_BROADCAT*/
 
 #define UBX_BUF_LEN 1024
 #define UBX_CRC_LEN 2
@@ -46,22 +55,22 @@ uint8_t sensor_fusion_active = 0;
 uint8_t esf_active = 0;
 
 #ifdef DEBUG
-#define debug(...)           \
-    do {                     \
-        printf(__VA_ARGS__); \
-    } while (0)
+    #define debug(...)           \
+        do {                     \
+            printf(__VA_ARGS__); \
+        } while (0)
 #else
-#define debug(...)
-#endif
+    #define debug(...)
+#endif /*DEBUG */
 
-int i2c_init(uint8_t device_in);
-int i2c_send_req(const char* value_in, uint8_t len_in);
-int i2c_read_req(void);
-char* ubx_get_calibration_status(uint8_t calib);
-char* ubx_get_sensor_type(uint8_t type);
-
-/*********************************************************
- * 						I2C routinen
+int i2c_init(uint8_t device_in);                           
+int i2c_send_req(const char* value_in, uint8_t len_in);    
+int i2c_read_req(void);                                    
+char* ubx_get_calibration_status(uint8_t calib);           
+char* ubx_get_sensor_type(uint8_t type);                   
+                                                           
+/********************************************************* 
+ * 						I2C routinen                       
  * *******************************************************/
 
 /* I2C init */
@@ -156,14 +165,12 @@ int i2c_read_req(void)
         //read the message
         if (msg_len == read(m8l_fd, &rx_buf[6], msg_len)) {
             debug("ubx header received (msg_len = %d)\n", msg_len - UBX_CRC_LEN);
-
-            //for (int i = 0; i < (UBX_HEADER_LEN + len); i++)
-            //for (int i = 0; i < 10; i++)
-            //{
-            //	printf("%02x, ", rx_buf[i]);
-            //}
-            //printf("\n");
-
+#ifdef DEBUG
+            for (int i = 0; i < (UBX_HEADER_LEN + msg_len); i++) {
+                debug("%02x, ", rx_buf[i]);
+            }
+            debug("\n");
+#endif /*DEBUG*/
             ubx_parse_ubx_data(rx_buf, UBX_HEADER_LEN + msg_len);
         } else {
             printf("failure by reading form receiver %s\n", strerror(errno));
@@ -733,6 +740,9 @@ uint ubx_parse_ubx_data(char* buf, uint len)
         case MSG_CLASS_NAV:
             debug("--Navigation message received\n");
             ubx_dedode_class_nav_msg(buf, len);
+#ifdef SEND_TO_BROADCAST
+            broadcast_socket_send(buf, len);
+#endif /*SEND_TO_BROADCAST*/
             break;
         case MSG_CLASS_MON:
             debug("--Monitoring message received\n");
@@ -749,10 +759,16 @@ uint ubx_parse_ubx_data(char* buf, uint len)
         case MSG_CLASS_RXM:
             debug("--RXM message received\n");
             ubx_dedode_class_rxm_msg(buf, len);
+#ifdef SEND_TO_BROADCAST
+            broadcast_socket_send(buf, len);
+#endif /*SEND_TO_BROADCAST*/
             break;
         case MSG_CLASS_ESF:
             debug("--ESF message received\n");
             ubx_dedode_class_esf_msg(buf, len);
+#ifdef SEND_TO_BROADCAST
+            broadcast_socket_send(buf, len);
+#endif /*SEND_TO_BROADCAST*/
             break;
         case MSG_CLASS_ACK:
             debug("--ACK message %02x %02x received (%s)\n", buf[6], buf[7], (buf[3] == 1) ? "OK" : "NOK");
@@ -780,6 +796,7 @@ void sigterm_handler(int signal, siginfo_t* info, void* _unused)
         info->si_signo, info->si_code, info->si_pid);
 
     ubx_clear();
+    broadcast_socket_close();
 
     exit(0);
 }
@@ -810,6 +827,14 @@ int main(int argc, char* argv[])
     if (1 < argc) {
         i2c_device = atoi(argv[1]);
     }
+
+#ifdef SEND_TO_BROADCAST
+
+    if (0 < broadcast_socket_create(BROADCAST_SOCKET_ADDR, BROADCAST_SOCKET_PORT, BROADCAST_SOCKET_DEVICE)) {
+        send_to_broadcast = 1;
+    }
+
+#endif /*SEND_TO_BROADCAST*/
 
     if (0 > (i2c_init(i2c_device))) {
         printf("%d: Failed to initialize I2C bus\n", __LINE__);

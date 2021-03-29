@@ -1,11 +1,10 @@
 PROJECT = gnss_m8l_i2c
-PROJECT_DEBUG =gnss_m8l_i2c_debug
  
 CC      = gcc
 OPTIONS = -Wall
 
 #SRCS := $(wildcard *.c)
-SRCS := gnss_m8l_i2c.c
+SRCS := gnss_m8l_i2c.c broadcast_socket.c
 
 #ifndef DEBUG
 #DEBUG=0
@@ -24,9 +23,13 @@ $(PROJECT): $(SRCS)
 	@echo "build..."
 	$(CC) $(SRCS) $(OPTIONS) -o  $(PROJECT)
 
+broadcast:
+	@echo "build..."
+	$(CC) $(SRCS) $(OPTIONS) -D SEND_TO_BROADCAST -o  $(PROJECT)_broadcast
+
 debug:
 	@echo "build debug..."
-	$(CC) $(SRCS) $(OPTIONS) -D DEBUG -o $(PROJECT_DEBUG)
+	$(CC) $(SRCS) $(OPTIONS) -D DEBUG -o $(PROJECT)_debug
 	
 clean:
 	rm -f $(PROJECT)
