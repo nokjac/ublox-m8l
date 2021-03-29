@@ -1,4 +1,4 @@
-#include "gnss_m8l.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
@@ -13,6 +13,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "gnss_m8l.h"
 
 #define I2C_0 0
 #define I2C_1 1
@@ -55,24 +57,8 @@ uint8_t esf_active = 0;
 int i2c_init(uint8_t device_in);
 int i2c_send_req(const char* value_in, uint8_t len_in);
 int i2c_read_req(void);
-int ubx_init(void);
-void ubx_dedode_class_mon_msg(char* buf, uint len);
-void ubx_dedode_class_cfg_msg(char* buf, uint len);
-void ubx_dedode_class_nav_msg(char* buf, uint len);
-void ubx_decode_rxm_rawx(char* rmx, uint len);
-void ubx_decode_rxm_measx(char* rmx, uint len);
-void ubx_decode_esf_meas(char* buf, uint len);
-void ubx_start_esf_meas(void);
-void ubx_stop_esf_meas(void);
-void ubx_decode_esf_status(char* buf, uint len);
-void ubx_decode_esf_raw(char* buf, uint len);
-void ubx_start_esf_raw(void);
-void ubx_stop_esf_raw(void);
-void ubx_decode_esf_status(char* esf, uint len);
 char* ubx_get_calibration_status(uint8_t calib);
 char* ubx_get_sensor_type(uint8_t type);
-uint ubx_parse_ubx_data(char* buf, uint len);
-void ubx_clear(void);
 
 /*********************************************************
  * 						I2C routinen
@@ -204,7 +190,7 @@ int ubx_init(void)
     printf(">>> send ubx_cfg_rst_req (%02x %02x)...\n", ubx_cfg_rst_req[2], ubx_cfg_rst_req[3]);
     i2c_send_req(ubx_cfg_rst_req, sizeof(ubx_cfg_rst_req));
 
-    usleep(500000);
+    usleep(750000);
 
     /* request version from GNSS module */
     printf(">>> send ubx_mon_ver_req (%02x %02x)...\n", ubx_mon_ver_req[2], ubx_mon_ver_req[3]);
@@ -231,14 +217,13 @@ int ubx_init(void)
         return -1;
     }
 
-	/* request UBX port configuration */
-	printf(">>> send ubx_cfg_prt_i2c_req (%02x %02x)...\n", ubx_cfg_prt_i2c_req[2], ubx_cfg_prt_i2c_req[3]);
-	i2c_send_req(ubx_cfg_prt_i2c_req, sizeof(ubx_cfg_prt_i2c_req));
-	if (0 > i2c_read_req())
-	{
-		printf("ubx_cfg_prt_i2c_req failed\n");
-		return -1;
-	}
+    /* request UBX port configuration */
+    printf(">>> send ubx_cfg_prt_i2c_req (%02x %02x)...\n", ubx_cfg_prt_i2c_req[2], ubx_cfg_prt_i2c_req[3]);
+    i2c_send_req(ubx_cfg_prt_i2c_req, sizeof(ubx_cfg_prt_i2c_req));
+    if (0 > i2c_read_req()) {
+        printf("ubx_cfg_prt_i2c_req failed\n");
+        return -1;
+    }
 
 #if 0 /* not necessary */
 	/* request positioning */
