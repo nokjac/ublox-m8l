@@ -12,5 +12,5 @@
 >```make broadcast```
 
 ### Execute
-call parametes (use /dev/i2c-2 device):
+call with parameter for selecting dedicated i2c channel (e.g. /dev/i2c-2 device):
 >```gnss_m8l_i2c 2```
