@@ -372,9 +372,9 @@ void ubx_decode_mon_ver(char* buf, uint len)
 {
     uint i = 40;
 
-    printf("sw:%s, hw: %s\n", &buf[0], &buf[20]);
+    printf("sw:%s, hw: %s\n", &buf[0], &buf[30]);
 
-    while (i <= len) {
+    while (i < len) {
         printf("%s, ", &buf[i]);
         i += 30;
     }
